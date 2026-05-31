@@ -23,7 +23,7 @@ def get_type_hints(obj):
     return _get_type_hints(obj, include_extras=True)
 
 
-PY_31PLUS = sys.version_info >= (3, 12)
+PY_312PLUS = sys.version_info >= (3, 12)
 
 # The `is_class` argument was new in 3.11, but was backported to 3.9 and 3.10.
 # It's _likely_ to be available for 3.9/3.10, but may not be. Easiest way to
@@ -147,7 +147,7 @@ def get_class_annotations(obj):
         mapping = typevar_mappings.get(cls)
         cls_locals = dict(vars(cls))
 
-        if PY_31PLUS:
+        if PY_312PLUS:
             # resolve type parameters (e.g. class Foo[T]: pass)
             cls_locals.update({p.__name__: p for p in cls.__type_params__})
 
