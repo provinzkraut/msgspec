@@ -540,10 +540,11 @@ msgspec_get_state(PyObject *module)
 }
 
 /*
-with multi-phase init PyState_FindModule is not usable.
+With multi-phase init PyState_FindModule is not usable.
 since we declare MULTIPLE_INTERPRETERS_NOT_SUPPORTED, we are guaranteed to have
 at most one live module instance per process, so we can cache its state here.
-state is populated populate in _core_exec and cleared by m_clear / m_free.
+state is populated in _core_exec and cleared and freed by m_clear and m_free
+respectively.
 */
 static MsgspecState *_core_state = NULL;
 
@@ -22406,7 +22407,7 @@ msgspec_traverse(PyObject *m, visitproc visit, void *arg)
 }
 
 
-int _core_exec(PyObject *m)
+static int _core_exec(PyObject *m)
 {
     MsgspecState *st;
     PyObject *temp_module, *temp_obj;
@@ -22734,6 +22735,7 @@ static struct PyModuleDef_Slot module_slots[] = {
     {Py_mod_gil, Py_MOD_GIL_NOT_USED},
 #endif
     {Py_mod_exec, _core_exec},
+    {Py_mod_multiple_interpreters, Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED},
     {0, NULL}
 };
 
