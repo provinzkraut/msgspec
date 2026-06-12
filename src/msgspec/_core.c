@@ -630,6 +630,7 @@ static bool strbuilder_extend(strbuilder *self, const char *buf, Py_ssize_t nbyt
         self->capacity = required * 1.5;
         char *new_buf = PyMem_Realloc(self->buffer, self->capacity);
         if (new_buf == NULL) {
+            PyErr_NoMemory();
             PyMem_Free(self->buffer);
             self->buffer = NULL;
             return false;
@@ -910,8 +911,7 @@ _IntLookupHashmap_lookup(IntLookupHashmap *self, int64_t key) {
         if (entry->value == NULL) return entry;
         i = (i + 1) & mask;
     }
-    /* Unreachable */
-    return NULL;
+    Py_UNREACHABLE();
 }
 
 static void
@@ -1245,8 +1245,7 @@ _StrLookup_lookup(StrLookup *self, const char *key, Py_ssize_t size)
         perturb >>= 5;
         i = mask & (i*5 + perturb + 1);
     }
-    /* Unreachable */
-    return NULL;
+    Py_UNREACHABLE();
 }
 
 static int
@@ -5132,7 +5131,7 @@ typenode_collect_type(TypeNodeCollectState *state, PyObject *obj) {
             PyTuple_GET_SIZE(PyTuple_GET_ITEM(args, 0)) == 0
         ) {
             /* XXX: this case handles a weird compatibility issue:
-             * - Tuple[()].__args__ == ((),)
+             * - typing.Tuple[()].__args__ == ((),)
              * - tuple[()].__args__ == ()
              */
             out = typenode_collect_array(
@@ -6390,7 +6389,10 @@ structmeta_construct_offsets(
     }
 
     info->offsets = PyMem_New(Py_ssize_t, PyTuple_GET_SIZE(info->fields));
-    if (info->offsets == NULL) return -1;
+    if (info->offsets == NULL) {
+        PyErr_NoMemory();
+        return -1;
+    }
 
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(info->fields); i++) {
         PyObject *field = PyTuple_GET_ITEM(info->fields, i);
@@ -9620,17 +9622,6 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    if (enc_hook == Py_None) {
-        enc_hook = NULL;
-    }
-    if (enc_hook != NULL) {
-        if (!PyCallable_Check(enc_hook)) {
-            PyErr_SetString(PyExc_TypeError, "enc_hook must be callable");
-            return -1;
-        }
-        Py_INCREF(enc_hook);
-    }
-
     /* Process decimal format */
     if (decimal_format == NULL) {
         self->decimal_format = DECIMAL_FORMAT_STRING;
@@ -9692,6 +9683,17 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwds)
     /* Process order */
     self->order = parse_order_arg(order);
     if (self->order == ORDER_INVALID) return -1;
+
+    if (enc_hook == Py_None) {
+        enc_hook = NULL;
+    }
+    if (enc_hook != NULL) {
+        if (!PyCallable_Check(enc_hook)) {
+            PyErr_SetString(PyExc_TypeError, "enc_hook must be callable");
+            return -1;
+        }
+        Py_INCREF(enc_hook);
+    }
 
     self->mod = msgspec_get_global_state();
     self->enc_hook = enc_hook;
@@ -10248,7 +10250,9 @@ ms_decode_bigint(const char *buf, Py_ssize_t size, TypeNode *type, PathNode *pat
     if (size > 4300) goto out_of_range;
     /* CPython int parsing routine requires NULL terminated buffer */
     char *temp = (char *)PyMem_Malloc(size + 1);
-    if (temp == NULL) return NULL;
+    if (temp == NULL) {
+        return PyErr_NoMemory();
+    }
     memcpy(temp, buf, size);
     temp[size] = '\0';
     PyObject *out = PyLong_FromString(temp, NULL, 10);
