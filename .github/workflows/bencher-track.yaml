@@ -29,6 +29,7 @@ jobs:
         permissions:
             contents: read
             actions: read
+            pull-requests: write
             checks: write
         env:
             BENCHER_PROJECT: "${{ vars.BENCHER_PROJECT }}"
