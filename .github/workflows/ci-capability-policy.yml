@@ -55,6 +55,9 @@ jobs:
             # Trusted tracker only loads a pre-built image and uploads results; it
             # never checks out or executes untrusted pull-request code.
             - bencher-track.yaml
+            # Trusted archiver only archives a Bencher branch by name on PR close;
+            # it never checks out or executes untrusted pull-request code.
+            - bencher-archive.yaml
         EOF
 
         docker run --rm \

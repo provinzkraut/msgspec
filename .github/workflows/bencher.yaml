@@ -58,14 +58,30 @@ jobs:
                   docker push "${IMAGE_REF}"
 
             - name: Benchmark main branch and update thresholds
+              # Percentage thresholds on every tracked measure. Unlike t_test
+              # (which needs >=2 historical points before it can compare), the
+              # percentage test works from a single baseline, so pull requests
+              # get an immediate "% vs main's recent results" comparison in their
+              # comment as soon as `main` has run once. The boundaries below are
+              # the alert limits (e.g. 0.10 = flag a >10% regression); tune freely.
+              # The three repeated flags are parallel lists -- one entry per
+              # measure (latency, memory, file-size).
               run: |
                   bencher run \
                     --branch main \
                     --testbed intel-v1 \
                     --threshold-measure latency \
-                    --threshold-test t_test \
+                    --threshold-measure memory \
+                    --threshold-measure file-size \
+                    --threshold-test percentage \
+                    --threshold-test percentage \
+                    --threshold-test percentage \
                     --threshold-max-sample-size 64 \
-                    --threshold-upper-boundary 0.99 \
+                    --threshold-max-sample-size 64 \
+                    --threshold-max-sample-size 64 \
+                    --threshold-upper-boundary 0.10 \
+                    --threshold-upper-boundary 0.10 \
+                    --threshold-upper-boundary 0.02 \
                     --thresholds-reset \
                     --adapter json \
                     --github-actions "${GH_TOKEN}" \
