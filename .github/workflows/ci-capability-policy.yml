@@ -52,6 +52,9 @@ jobs:
             - ci-capability-policy.yml
             # Trusted orchestration isolates the untrusted docs build from deployment.
             - docs-deploy.yml
+            # Trusted tracker only loads a pre-built image and uploads results; it
+            # never checks out or executes untrusted pull-request code.
+            - bencher-track.yml
         EOF
 
         docker run --rm \

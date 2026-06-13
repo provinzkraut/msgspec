@@ -1,0 +1,74 @@
+name: Continuous Benchmarking
+
+# benchmark images on 'main', published to bencher.dev as a baseline, to track
+# performance over time and individual PRs
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - src/msgspec/**
+            - benchmarks/**
+            - pyproject.toml
+            - setup.py
+            - uv.lock
+            - .github/workflows/bencher.yml
+
+permissions:
+    checks: write
+
+concurrency:
+    group: "bencher-${{ github.ref }}"
+    cancel-in-progress: false
+
+jobs:
+    benchmark:
+        name: Track benchmarks with Bencher
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        env:
+            BENCHER_PROJECT: "${{ vars.BENCHER_PROJECT }}"
+            BENCHER_API_TOKEN: "${{ secrets.BENCHER_API_TOKEN }}"
+            IMAGE_REF: "registry.bencher.dev/${{ vars.BENCHER_PROJECT }}:${{ github.sha }}"
+            IMAGE_TAG: "${{ vars.BENCHER_PROJECT }}:${{ github.sha }}"
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Bencher CLI
+              uses: bencherdev/bencher@50fb1e138651a46d2fb704fab1adab38c181552e # v0.6.6
+
+            - name: Build and push the benchmark image
+              run: |
+                  echo "${BENCHER_API_TOKEN}" | docker login registry.bencher.dev \
+                    --username "${BENCHER_PROJECT}" --password-stdin
+                  docker build \
+                    --file benchmarks/Dockerfile \
+                    --tag "${IMAGE_REF}" \
+                    --build-arg "MSGSPEC_VERSION=0.0.0+${GITHUB_SHA}" \
+                    --provenance=false \
+                    .
+                  docker push "${IMAGE_REF}"
+
+            - name: Benchmark main branch and update thresholds
+              run: |
+                  bencher run \
+                    --branch main \
+                    --testbed intel-v1 \
+                    --threshold-measure latency \
+                    --threshold-test t_test \
+                    --threshold-max-sample-size 64 \
+                    --threshold-upper-boundary 0.99 \
+                    --thresholds-reset \
+                    --adapter json \
+                    --github-actions "${GH_TOKEN}" \
+                    --image "${IMAGE_TAG}" \
+                    --file-size /app/msgspec_core.so \
+                    "python -m benchmarks.bencher"
+              env:
+                  GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
