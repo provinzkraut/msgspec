@@ -70,7 +70,6 @@ jobs:
                     --adapter json \
                     --github-actions "${GH_TOKEN}" \
                     --image "${IMAGE_TAG}" \
-                    --file-size /app/msgspec_core.so \
                     "python -m benchmarks.bencher"
               env:
                   GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

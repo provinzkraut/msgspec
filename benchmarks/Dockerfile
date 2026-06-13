@@ -30,8 +30,4 @@ RUN pip install --no-cache-dir /tmp/*.whl && rm /tmp/*.whl
 
 COPY benchmarks ./benchmarks
 
-# put the compiled extension at a stable path so we can track its size via
-# `--file-size`: https://bencher.dev/docs/how-to/track-file-size/.
-RUN python -c "import msgspec._core, shutil; shutil.copyfile(msgspec._core.__file__, '/app/msgspec_core.so')"
-
 CMD ["python", "-m", "benchmarks.bencher"]

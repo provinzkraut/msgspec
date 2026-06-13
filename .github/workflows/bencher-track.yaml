@@ -88,5 +88,4 @@ jobs:
                     --ci-number "${PR_NUMBER}" \
                     --error-on-alert \
                     --image "${BENCHER_PROJECT}:${PR_HEAD_SHA}" \
-                    --file-size /app/msgspec_core.so \
                     "python -m benchmarks.bencher"

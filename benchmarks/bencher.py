@@ -102,18 +102,34 @@ def collect_large_json():
     return results
 
 
+def collect_file_size():
+    # Track the size of the compiled extension (the bulk of msgspec's footprint)
+    # as a Bencher "File Size" measure, in bytes. We emit it in the BMF rather than
+    # using `bencher run --file-size`, because that flag treats the benchmark
+    # command as a build command and discards its stdout -- so the timing/memory
+    # benchmarks would be lost. Measured in-process, since the aggregator runs
+    # inside the image where msgspec is installed.
+    import os
+
+    import msgspec._core
+
+    size = os.path.getsize(msgspec._core.__file__)
+    return {"msgspec_core.so": {"file-size": {"value": size}}}
+
+
 COLLECTORS = {
     "encodings": collect_encodings,
     "structs": collect_structs,
     "gc": collect_gc,
     "validation": collect_validation,
     "large_json": collect_large_json,
+    "file_size": collect_file_size,
 }
 
 # can't run 'large_json' at the moment, since it requires a download, which isn't available
 # at bench runtime, and would blow up the docker image.
 # TODO: Figure out a way to properly handle this
-DEFAULT_BENCHMARKS = ["encodings", "structs", "gc", "validation"]
+DEFAULT_BENCHMARKS = ["encodings", "structs", "gc", "validation", "file_size"]
 
 
 def main():
