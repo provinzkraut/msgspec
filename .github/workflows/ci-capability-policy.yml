@@ -54,7 +54,7 @@ jobs:
             - docs-deploy.yml
             # Trusted tracker only loads a pre-built image and uploads results; it
             # never checks out or executes untrusted pull-request code.
-            - bencher-track.yml
+            - bencher-track.yaml
         EOF
 
         docker run --rm \

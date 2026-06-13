@@ -1,6 +1,6 @@
 name: Track Benchmarks with Bencher
 
-# privileged counterpart to 'bencher-pr.yml'.
+# privileged counterpart to 'bencher-pr.yaml'.
 # downloads the image + PR event as data, pushes the image, and dispatches it to
 # Bencher's bare-metal runners.
 # See: https://bencher.dev/docs/how-to/github-actions/#pull-requests-from-forks

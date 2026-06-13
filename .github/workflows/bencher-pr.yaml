@@ -2,7 +2,7 @@ name: Run Benchmarks
 
 # builds the benchmark image for a pull request and ship it + the PR event as artifacts.
 # this runs in the pull-request context with NO access to secrets, so it doesn't require
-# exposing those to forks. The privileged `'bencher-track.yml' workflow then loads
+# exposing those to forks. The privileged 'bencher-track.yaml' workflow then loads
 # the image, pushes it, and runs it on Bencher's bare-metal runners.
 
 on:
@@ -15,8 +15,8 @@ on:
             - pyproject.toml
             - setup.py
             - uv.lock
-            - .github/workflows/bencher-pr.yml
-            - .github/workflows/bencher-track.yml
+            - .github/workflows/bencher-pr.yaml
+            - .github/workflows/bencher-track.yaml
 
 permissions: {}
 

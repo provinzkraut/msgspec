@@ -4,6 +4,7 @@ name: Continuous Benchmarking
 # performance over time and individual PRs
 
 on:
+    workflow_dispatch:
     push:
         branches:
             - main
@@ -15,8 +16,7 @@ on:
             - uv.lock
             - .github/workflows/bencher.yaml
 
-permissions:
-    checks: write
+permissions: {}
 
 concurrency:
     group: "bencher-${{ github.ref }}"
@@ -28,6 +28,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+            checks: write
         env:
             BENCHER_PROJECT: "${{ vars.BENCHER_PROJECT }}"
             BENCHER_PROJECT_KEY: "${{ secrets.BENCHER_PROJECT_KEY }}"
