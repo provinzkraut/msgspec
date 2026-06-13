@@ -7,13 +7,6 @@ on:
     push:
         branches:
             - main
-        paths:
-            - src/msgspec/**
-            - benchmarks/**
-            - pyproject.toml
-            - setup.py
-            - uv.lock
-            - .github/workflows/bencher.yml
 
 permissions:
     checks: write
