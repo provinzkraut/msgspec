@@ -1,3 +1,4 @@
+import json
 import subprocess
 import sys
 import tempfile
@@ -116,6 +117,11 @@ def main():
         action="store_true",
         help="Output library version info, and exit immediately",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Whether to output the results as json",
+    )
     args = parser.parse_args()
 
     bench_names = set(args.bench_names)
@@ -150,6 +156,12 @@ def main():
             # We execute each script in a subprocess to isolate their memory usage
             output = subprocess.check_output([sys.executable, "-c", script])
             results[name] = ast.literal_eval(output.decode())
+
+        if args.json:
+            # mem is in MiB, time in milliseconds.
+            for name, (mem, time) in results.items():
+                print(json.dumps({"label": name, "memory": mem, "time": time}))
+            return
 
         # Compose the results table
         best_mem, best_time = results["msgspec structs"]

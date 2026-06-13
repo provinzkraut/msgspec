@@ -1,0 +1,66 @@
+name: Run Benchmarks
+
+# builds the benchmark image for a pull request and ship it + the PR event as artifacts.
+# this runs in the pull-request context with NO access to secrets, so it doesn't require
+# exposing those to forks. The privileged `'bencher-track.yml' workflow then loads
+# the image, pushes it, and runs it on Bencher's bare-metal runners.
+
+on:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - src/msgspec/**
+            - benchmarks/**
+            - pyproject.toml
+            - setup.py
+            - uv.lock
+            - .github/workflows/bencher-pr.yml
+            - .github/workflows/bencher-track.yml
+
+permissions: {}
+
+concurrency:
+    group: "bencher-pr-${{ github.ref }}"
+    cancel-in-progress: true
+
+jobs:
+    build:
+        name: Build benchmark image
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+              with:
+                  persist-credentials: false
+
+            - name: Build the benchmark image
+              env:
+                  HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
+              run: |
+                  docker build \
+                    --file benchmarks/Dockerfile \
+                    --tag msgspec-bench:pr \
+                    --build-arg "MSGSPEC_VERSION=0.0.0+${HEAD_SHA}" \
+                    --provenance=false \
+                    .
+                  docker save msgspec-bench:pr --output benchmark-image.tar
+
+            - name: Save the pull request event
+              run: cp "${GITHUB_EVENT_PATH}" event.json
+
+            - name: Upload benchmark image
+              uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+              with:
+                  name: benchmark-image
+                  path: benchmark-image.tar
+                  if-no-files-found: error
+
+            - name: Upload pull request event
+              uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+              with:
+                  name: pr-event
+                  path: event.json
+                  if-no-files-found: error

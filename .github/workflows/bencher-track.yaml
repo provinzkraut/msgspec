@@ -1,0 +1,91 @@
+name: Track Benchmarks with Bencher
+
+# privileged counterpart to 'bencher-pr.yml'.
+# downloads the image + PR event as data, pushes the image, and dispatches it to
+# Bencher's bare-metal runners.
+# See: https://bencher.dev/docs/how-to/github-actions/#pull-requests-from-forks
+
+on:
+    workflow_run:
+        workflows:
+            - Run Benchmarks
+        types:
+            - completed
+
+permissions: {}
+
+concurrency:
+    group: "bencher-track-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}"
+    cancel-in-progress: true
+
+jobs:
+    track:
+        name: Track benchmarks with Bencher
+        # only act on successful pull-request runs of the upstream workflow.
+        if: >-
+            github.event.workflow_run.event == 'pull_request'
+            && github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+            checks: write
+        env:
+            BENCHER_PROJECT: "${{ vars.BENCHER_PROJECT }}"
+            BENCHER_API_TOKEN: "${{ secrets.BENCHER_API_TOKEN }}"
+        steps:
+            - name: Download benchmark image
+              uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+              with:
+                  name: benchmark-image
+                  run-id: "${{ github.event.workflow_run.id }}"
+                  github-token: "${{ github.token }}"
+
+            - name: Download pull request event
+              uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+              with:
+                  name: pr-event
+                  run-id: "${{ github.event.workflow_run.id }}"
+                  github-token: "${{ github.token }}"
+
+            - name: Install Bencher CLI
+              uses: bencherdev/bencher@50fb1e138651a46d2fb704fab1adab38c181552e # v0.6.6
+
+            - name: Load, push, and benchmark the pull request
+              env:
+                  REGISTRY_USERNAME: "${{ vars.BENCHER_PROJECT }}"
+                  GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+              run: |
+                  set -euo pipefail
+
+                  # read the (untrusted) PR context as data. These values are only
+                  # ever passed as quoted arguments, never interpolated into the shell.
+                  PR_HEAD="$(jq -r '.pull_request.head.ref' event.json)"
+                  PR_HEAD_SHA="$(jq -r '.pull_request.head.sha' event.json)"
+                  PR_BASE="$(jq -r '.pull_request.base.ref' event.json)"
+                  PR_BASE_SHA="$(jq -r '.pull_request.base.sha' event.json)"
+                  PR_NUMBER="$(jq -r '.number' event.json)"
+
+                  image_ref="registry.bencher.dev/${BENCHER_PROJECT}:${PR_HEAD_SHA}"
+
+                  docker load --input benchmark-image.tar
+                  echo "${BENCHER_API_TOKEN}" | docker login registry.bencher.dev \
+                    --username "${REGISTRY_USERNAME}" --password-stdin
+                  docker tag msgspec-bench:pr "${image_ref}"
+                  docker push "${image_ref}"
+
+                  bencher run \
+                    --branch "${PR_HEAD}" \
+                    --hash "${PR_HEAD_SHA}" \
+                    --start-point "${PR_BASE}" \
+                    --start-point-hash "${PR_BASE_SHA}" \
+                    --start-point-clone-thresholds \
+                    --start-point-reset \
+                    --testbed intel-v1 \
+                    --adapter json \
+                    --github-actions "${GH_TOKEN}" \
+                    --ci-number "${PR_NUMBER}" \
+                    --error-on-alert \
+                    --image "${BENCHER_PROJECT}:${PR_HEAD_SHA}" \
+                    --file-size /app/msgspec_core.so \
+                    "python -m benchmarks.bencher"

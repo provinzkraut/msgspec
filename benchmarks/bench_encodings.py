@@ -11,6 +11,27 @@ import msgspec
 
 from .generate_data import make_filesystem_data
 
+# The benchmark names selectable via `--bench-name`, per protocol. Each library
+# is only imported when its benchmark is selected, so unselected ones don't need
+# to be installed (the continuous-benchmarking image ships msgspec alone).
+JSON_BENCHMARK_NAMES = [
+    "msgspec structs",
+    "msgspec",
+    "json",
+    "orjson",
+    "ujson",
+    "rapidjson",
+    "simdjson",
+]
+MSGPACK_BENCHMARK_NAMES = [
+    "msgspec structs",
+    "msgspec",
+    "msgpack",
+    "ormsgpack",
+]
+# De-duplicated union (preserving order), used for the `--bench-name` choices.
+BENCHMARK_NAMES = list(dict.fromkeys(JSON_BENCHMARK_NAMES + MSGPACK_BENCHMARK_NAMES))
+
 
 class File(msgspec.Struct, kw_only=True, omit_defaults=True, tag="file"):
     name: str
@@ -59,51 +80,92 @@ class Benchmark:
         }
 
 
-def json_benchmarks():
-    import orjson
-    import rapidjson
-    import simdjson
-    import ujson
-
-    simdjson_ver = importlib.metadata.version("pysimdjson")
-
-    rj_dumps = rapidjson.Encoder()
-    rj_loads = rapidjson.Decoder()
-
-    def uj_dumps(obj):
-        return ujson.dumps(obj)
-
+def json_benchmarks(selected):
     enc = msgspec.json.Encoder()
     dec = msgspec.json.Decoder(Directory)
     dec2 = msgspec.json.Decoder()
 
-    return [
-        Benchmark("msgspec structs", None, enc.encode, dec.decode, Directory),
-        Benchmark("msgspec", msgspec.__version__, enc.encode, dec2.decode),
-        Benchmark("json", None, json.dumps, json.loads),
-        Benchmark("orjson", orjson.__version__, orjson.dumps, orjson.loads),
-        Benchmark("ujson", ujson.__version__, uj_dumps, ujson.loads),
-        Benchmark("rapidjson", rapidjson.__version__, rj_dumps, rj_loads),
-        Benchmark("simdjson", simdjson_ver, simdjson.dumps, simdjson.loads),
-    ]
+    benchmarks = []
+    if "msgspec structs" in selected:
+        benchmarks.append(
+            Benchmark("msgspec structs", None, enc.encode, dec.decode, Directory)
+        )
+    if "msgspec" in selected:
+        benchmarks.append(
+            Benchmark("msgspec", msgspec.__version__, enc.encode, dec2.decode)
+        )
+    if "json" in selected:
+        benchmarks.append(Benchmark("json", None, json.dumps, json.loads))
+    if "orjson" in selected:
+        import orjson
+
+        benchmarks.append(
+            Benchmark("orjson", orjson.__version__, orjson.dumps, orjson.loads)
+        )
+    if "ujson" in selected:
+        import ujson
+
+        benchmarks.append(
+            Benchmark(
+                "ujson", ujson.__version__, lambda obj: ujson.dumps(obj), ujson.loads
+            )
+        )
+    if "rapidjson" in selected:
+        import rapidjson
+
+        benchmarks.append(
+            Benchmark(
+                "rapidjson",
+                rapidjson.__version__,
+                rapidjson.Encoder(),
+                rapidjson.Decoder(),
+            )
+        )
+    if "simdjson" in selected:
+        import simdjson
+
+        benchmarks.append(
+            Benchmark(
+                "simdjson",
+                importlib.metadata.version("pysimdjson"),
+                simdjson.dumps,
+                simdjson.loads,
+            )
+        )
+
+    return benchmarks
 
 
-def msgpack_benchmarks():
-    import msgpack
-    import ormsgpack
-
+def msgpack_benchmarks(selected):
     enc = msgspec.msgpack.Encoder()
     dec = msgspec.msgpack.Decoder(Directory)
     dec2 = msgspec.msgpack.Decoder()
 
-    return [
-        Benchmark("msgspec structs", None, enc.encode, dec.decode, Directory),
-        Benchmark("msgspec", msgspec.__version__, enc.encode, dec2.decode),
-        Benchmark("msgpack", msgpack.__version__, msgpack.dumps, msgpack.loads),
-        Benchmark(
-            "ormsgpack", ormsgpack.__version__, ormsgpack.packb, ormsgpack.unpackb
-        ),
-    ]
+    benchmarks = []
+    if "msgspec structs" in selected:
+        benchmarks.append(
+            Benchmark("msgspec structs", None, enc.encode, dec.decode, Directory)
+        )
+    if "msgspec" in selected:
+        benchmarks.append(
+            Benchmark("msgspec", msgspec.__version__, enc.encode, dec2.decode)
+        )
+    if "msgpack" in selected:
+        import msgpack
+
+        benchmarks.append(
+            Benchmark("msgpack", msgpack.__version__, msgpack.dumps, msgpack.loads)
+        )
+    if "ormsgpack" in selected:
+        import ormsgpack
+
+        benchmarks.append(
+            Benchmark(
+                "ormsgpack", ormsgpack.__version__, ormsgpack.packb, ormsgpack.unpackb
+            )
+        )
+
+    return benchmarks
 
 
 def main():
@@ -111,6 +173,15 @@ def main():
 
     parser = argparse.ArgumentParser(
         description="Benchmark different python serialization libraries"
+    )
+    parser.add_argument(
+        "-b",
+        "--bench-name",
+        dest="bench_names",
+        nargs="*",
+        choices=BENCHMARK_NAMES,
+        default=BENCHMARK_NAMES,
+        help="A list of benchmark names to run. Defaults to all.",
     )
     parser.add_argument(
         "--versions",
@@ -137,7 +208,12 @@ def main():
     )
     args = parser.parse_args()
 
-    benchmarks = json_benchmarks() if args.protocol == "json" else msgpack_benchmarks()
+    selected = set(args.bench_names)
+    benchmarks = (
+        json_benchmarks(selected)
+        if args.protocol == "json"
+        else msgpack_benchmarks(selected)
+    )
 
     if args.versions:
         for bench in benchmarks:

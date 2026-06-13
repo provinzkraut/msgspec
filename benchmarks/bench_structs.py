@@ -214,6 +214,11 @@ def main():
         action="store_true",
         help="Output library version info, and exit immediately",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Whether to output the results as json",
+    )
     args = parser.parse_args()
 
     if args.versions:
@@ -232,7 +237,24 @@ def main():
             continue
         results.append(bench(name, source))
 
-    print(format_table(results))
+    if args.json:
+        import json
+
+        for name, import_time, create_time, equality_time, order_time in results:
+            # times are in microseconds
+            print(
+                json.dumps(
+                    {
+                        "label": name,
+                        "import": import_time,
+                        "create": create_time,
+                        "equality": equality_time,
+                        "order": order_time,
+                    }
+                )
+            )
+    else:
+        print(format_table(results))
 
 
 if __name__ == "__main__":
