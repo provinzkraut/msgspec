@@ -104,6 +104,18 @@ def format_table(results):
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Benchmark GC collection time for many smal instances"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Whether to output the results as json",
+    )
+    args = parser.parse_args()
+
     results = []
     for name, cls in [
         ("standard class", PointClass),
@@ -111,11 +123,19 @@ def main():
         ("msgspec struct", Point),
         ("msgspec struct with gc=False", PointGCFalse),
     ]:
-        print(f"Benchmarking {name}...")
+        if not args.json:
+            print(f"Benchmarking {name}...")
         gc_time, mibytes = bench_gc(cls)
         results.append((name, gc_time, mibytes))
 
-    print(format_table(results))
+    if args.json:
+        import json
+
+        for name, gc_time, mibytes in results:
+            # gc_time is in milliseconds, memory in MiB.
+            print(json.dumps({"label": name, "gc_time": gc_time, "memory": mibytes}))
+    else:
+        print(format_table(results))
 
 
 if __name__ == "__main__":
