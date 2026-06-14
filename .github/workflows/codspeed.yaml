@@ -17,10 +17,11 @@ env:
 jobs:
   benchmarks:
     name: Run benchmarks
-    runs-on: codspeed-macro
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       id-token: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
@@ -43,5 +44,5 @@ jobs:
     - name: Run benchmarks
       uses: CodSpeedHQ/action@c145068895e045cc725ee76fcd2307624b65c3af  # v4.17.5
       with:
-        mode: walltime
+        mode: simulation
         run: uv run --no-sync pytest tests/prof/perf --codspeed

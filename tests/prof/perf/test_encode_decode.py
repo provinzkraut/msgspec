@@ -1,12 +1,10 @@
 import pytest
-
-from benchmarks.bench_encodings import Directory
-from benchmarks.bench_validation import bench_msgspec
-from benchmarks.generate_data import make_filesystem_data
+from pytest_codspeed import BenchmarkFixture
 
 import msgspec.json
 import msgspec.msgpack
-from pytest_codspeed import BenchmarkFixture
+from benchmarks.bench_encodings import Directory
+from benchmarks.generate_data import make_filesystem_data
 
 
 @pytest.fixture(params=[1000, 10000])
@@ -21,7 +19,6 @@ msgpack_decoder = msgspec.json.Decoder(type=Directory)
 msgspec_encoder = msgspec.json.Encoder()
 
 
-
 @pytest.mark.parametrize(
     "encoder",
     [
@@ -30,12 +27,7 @@ msgspec_encoder = msgspec.json.Encoder()
     ],
 )
 def test_encode(benchmark: BenchmarkFixture, encoder, file_system_data):
-    res = benchmark.pedantic(
-        encoder,
-        args=(file_system_data,),
-        rounds=1000,
-        warmup_rounds=100,
-    )
+    res = benchmark(encoder, file_system_data)
 
     assert isinstance(res, bytes)
 
@@ -49,12 +41,7 @@ def test_encode(benchmark: BenchmarkFixture, encoder, file_system_data):
 )
 def test_decode(benchmark: BenchmarkFixture, encoder, decoder, file_system_data):
     data = encoder(file_system_data)
-    res = benchmark.pedantic(
-        decoder,
-        args=(data,),
-        rounds=1000,
-        warmup_rounds=1000,
-    )
+    res = benchmark(decoder, data)
 
     assert isinstance(res, Directory)
 
@@ -70,11 +57,6 @@ def test_roundtrip(benchmark: BenchmarkFixture, encoder, decoder, file_system_da
     def func(data):
         return decoder(encoder(data))
 
-    res = benchmark.pedantic(
-        func,
-        args=(file_system_data,),
-        rounds=500,
-        warmup_rounds=100,
-    )
+    res = benchmark(func, file_system_data)
 
     assert isinstance(res, Directory)
