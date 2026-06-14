@@ -3,6 +3,11 @@ import pytest
 from benchmarks.generate_data import make_filesystem_data
 
 
+@pytest.fixture(autouse=True, params=["amd", "arm"])
+def provide_fake_arch(request):
+    return request.param
+
+
 @pytest.fixture
 def bench(benchmark, bench_config):
     if not bench_config["calibrate"]:

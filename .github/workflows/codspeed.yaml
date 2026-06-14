@@ -45,7 +45,7 @@ jobs:
       uses: CodSpeedHQ/action@c145068895e045cc725ee76fcd2307624b65c3af  # v4.17.5
       with:
         mode: simulation
-        run: uv run --no-sync pytest tests/prof/perf --codspeed
+        run: uv run --no-sync pytest tests/prof/perf --codspeed -k arm
 
   arm_benchmarks:
     name: arm benchmarks
@@ -77,4 +77,4 @@ jobs:
       uses: CodSpeedHQ/action@c145068895e045cc725ee76fcd2307624b65c3af  # v4.17.5
       with:
         mode: simulation
-        run: uv run --no-sync pytest tests/prof/perf --codspeed
+        run: uv run --no-sync pytest tests/prof/perf --codspeed -k amd
