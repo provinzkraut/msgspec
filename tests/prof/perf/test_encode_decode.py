@@ -21,6 +21,7 @@ msgpack_decoder = msgspec.json.Decoder(type=Directory)
 msgspec_encoder = msgspec.json.Encoder()
 
 
+
 @pytest.mark.parametrize(
     "encoder",
     [
@@ -29,7 +30,12 @@ msgspec_encoder = msgspec.json.Encoder()
     ],
 )
 def test_encode(benchmark: BenchmarkFixture, encoder, file_system_data):
-    res = benchmark(encoder, file_system_data)
+    res = benchmark.pedantic(
+        encoder,
+        args=(file_system_data,),
+        rounds=1000,
+        warmup_rounds=100,
+    )
 
     assert isinstance(res, bytes)
 
@@ -43,7 +49,12 @@ def test_encode(benchmark: BenchmarkFixture, encoder, file_system_data):
 )
 def test_decode(benchmark: BenchmarkFixture, encoder, decoder, file_system_data):
     data = encoder(file_system_data)
-    res = benchmark(decoder, data)
+    res = benchmark.pedantic(
+        decoder,
+        args=(data,),
+        rounds=1000,
+        warmup_rounds=1000,
+    )
 
     assert isinstance(res, Directory)
 
@@ -59,6 +70,11 @@ def test_roundtrip(benchmark: BenchmarkFixture, encoder, decoder, file_system_da
     def func(data):
         return decoder(encoder(data))
 
-    res = benchmark(func, file_system_data)
+    res = benchmark.pedantic(
+        func,
+        args=(file_system_data,),
+        rounds=500,
+        warmup_rounds=100,
+    )
 
     assert isinstance(res, Directory)
