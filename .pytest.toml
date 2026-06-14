@@ -9,3 +9,7 @@ testpaths = [
 filterwarnings = [
   "error",
 ]
+
+markers = [
+  "memory",
+]

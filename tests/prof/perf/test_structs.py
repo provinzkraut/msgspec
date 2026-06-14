@@ -1,6 +1,7 @@
 import random
 from typing import Annotated
 
+import pytest
 from pytest_codspeed import BenchmarkFixture
 
 import msgspec
@@ -65,10 +66,12 @@ def test_defstruct(benchmark: BenchmarkFixture):
     assert issubclass(res, msgspec.Struct)
 
 
+@pytest.mark.memory
 def test_create(benchmark):
     benchmark(lambda: [Item(i, i, i, i, i) for i in range(N)])
 
 
+@pytest.mark.memory
 def test_equality(benchmark):
     needle = Item(N - 1, N - 1, N - 1, N - 1, N - 1)
     haystack = [Item(i, i, i, i, i) for i in range(N)]
@@ -76,6 +79,7 @@ def test_equality(benchmark):
     benchmark(haystack.index, needle)
 
 
+@pytest.mark.memory
 def test_order(benchmark: BenchmarkFixture):
     haystack = [Item(i, i, i, i, i) for i in range(N)]
     RAMDOM.shuffle(haystack)
