@@ -60,3 +60,20 @@ def test_roundtrip(benchmark: BenchmarkFixture, encoder, decoder, file_system_da
     res = benchmark(func, file_system_data)
 
     assert isinstance(res, Directory)
+
+
+@pytest.mark.memory
+@pytest.mark.parametrize(
+    "encoder,decoder",
+    [
+        pytest.param(json_encoder.encode, json_decoder.decode, id="json"),
+        pytest.param(msgspec_encoder.encode, msgpack_decoder.decode, id="msgpack"),
+    ],
+)
+def test_roundtrip_memory(benchmark: BenchmarkFixture, encoder, decoder):
+    def func(data):
+        return decoder(encoder(data))
+
+    res = benchmark(func, make_filesystem_data(1000))
+
+    assert isinstance(res, Directory)
