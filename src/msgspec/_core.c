@@ -22788,7 +22788,9 @@ PyInit__core(void)
     CACHED_STRING(str_is_safe, "is_safe");
 
     /* Initialize the Struct Type */
-    PyState_AddModule(m, &msgspecmodule);
+    if (PyState_AddModule(m, &msgspecmodule) < 0) {
+        goto error;
+    }
     st->StructType = PyObject_CallFunction(
         (PyObject *)&StructMetaType, "s(O){ssss}", "Struct", &StructMixinType,
         "__module__", "msgspec", "__doc__", Struct__doc__
