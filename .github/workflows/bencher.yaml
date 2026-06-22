@@ -1,0 +1,91 @@
+name: Continuous Benchmarking
+
+# benchmark images on 'main', published to bencher.dev as a baseline, to track
+# performance over time and individual PRs
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - main
+        paths:
+            - src/msgspec/**
+            - benchmarks/**
+            - pyproject.toml
+            - setup.py
+            - uv.lock
+            - .github/workflows/bencher.yaml
+
+permissions: {}
+
+concurrency:
+    group: "bencher-${{ github.ref }}"
+    cancel-in-progress: false
+
+jobs:
+    benchmark:
+        name: Track benchmarks with Bencher
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            checks: write
+        env:
+            BENCHER_PROJECT: "${{ vars.BENCHER_PROJECT }}"
+            BENCHER_PROJECT_KEY: "${{ secrets.BENCHER_PROJECT_KEY }}"
+            BENCHER_API_TOKEN: "${{ secrets.BENCHER_API_TOKEN }}"
+            IMAGE_REF: "registry.bencher.dev/${{ vars.BENCHER_PROJECT }}:${{ github.sha }}"
+            IMAGE_TAG: "${{ vars.BENCHER_PROJECT }}:${{ github.sha }}"
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+              with:
+                  persist-credentials: false
+
+            - name: Install Bencher CLI
+              uses: bencherdev/bencher@50fb1e138651a46d2fb704fab1adab38c181552e # v0.6.6
+
+            - name: Build and push the benchmark image
+              run: |
+                  echo "${BENCHER_PROJECT_KEY}" | docker login registry.bencher.dev \
+                    --username "${BENCHER_PROJECT}" --password-stdin
+                  docker build \
+                    --file benchmarks/Dockerfile \
+                    --tag "${IMAGE_REF}" \
+                    --build-arg "MSGSPEC_VERSION=0.0.0+${GITHUB_SHA}" \
+                    --provenance=false \
+                    .
+                  docker push "${IMAGE_REF}"
+
+            - name: Benchmark main branch and update thresholds
+              # Percentage thresholds on every tracked measure. Unlike t_test
+              # (which needs >=2 historical points before it can compare), the
+              # percentage test works from a single baseline, so pull requests
+              # get an immediate "% vs main's recent results" comparison in their
+              # comment as soon as `main` has run once. The boundaries below are
+              # the alert limits (e.g. 0.10 = flag a >10% regression); tune freely.
+              # The three repeated flags are parallel lists -- one entry per
+              # measure (latency, memory, file-size).
+              run: |
+                  bencher run \
+                    --branch main \
+                    --testbed intel-v1 \
+                    --threshold-measure latency \
+                    --threshold-measure memory \
+                    --threshold-measure file-size \
+                    --threshold-test percentage \
+                    --threshold-test percentage \
+                    --threshold-test percentage \
+                    --threshold-max-sample-size 64 \
+                    --threshold-max-sample-size 64 \
+                    --threshold-max-sample-size 64 \
+                    --threshold-upper-boundary 0.10 \
+                    --threshold-upper-boundary 0.10 \
+                    --threshold-upper-boundary 0.02 \
+                    --thresholds-reset \
+                    --adapter json \
+                    --github-actions "${GH_TOKEN}" \
+                    --image "${IMAGE_TAG}" \
+                    "python -m benchmarks.bencher"
+              env:
+                  GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
